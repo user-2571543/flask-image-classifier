@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}画像詳細{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 画像 -->
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <img src="{{ url_for('static', filename=user_image.upload_path) }}" 
+                     alt="{{ user_image.filename }}"
+                     class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+    
+    <!-- 分類結果情報 -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">分類結果</h5>
+            </div>
+            <div class="card-body">
+                {% if prediction %}
+                    <!-- ラベル -->
+                    <div class="mb-4">
+                        <small class="text-muted">分類ラベル</small>
+                        <div class="mt-2">
+                            {% if prediction.label == 'dog' %}
+                                <span class="badge bg-success fs-5" style="padding: 10px 20px;">
+                                    🐕 犬 (Dog)
+                                </span>
+                            {% elif prediction.label == 'cat' %}
+                                <span class="badge bg-info fs-5" style="padding: 10px 20px;">
+                                    🐈 猫 (Cat)
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary fs-5" style="padding: 10px 20px;">
+                                    ❓ その他 (Other)
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- 信頼度 -->
+                    <div class="mb-4">
+                        <small class="text-muted">信頼度</small>
+                        <div class="mt-2">
+                            <h6>{{ "%.2f" | format(prediction.confidence * 100) }}%</h6>
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ prediction.confidence * 100 }}%"
+                                     aria-valuenow="{{ prediction.confidence * 100 }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- メタデータ -->
+                    <div class="mb-4">
+                        <small class="text-muted">ファイル情報</small>
+                        <div class="mt-2">
+                            <p class="mb-2">
+                                <strong>ファイル名:</strong><br>
+                                <code>{{ user_image.filename }}</code>
+                            </p>
+                            <p class="mb-0">
+                                <strong>アップロード日時:</strong><br>
+                                {{ user_image.uploaded_at.strftime('%Y年%m月%d日 %H:%M:%S') }}
+                            </p>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        分類結果がまだ取得できていません
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 削除ボタン -->
+        <div class="card shadow bg-light">
+            <div class="card-body">
+                <p class="text-muted small mb-3">この画像を削除する場合は以下のボタンをクリックしてください。</p>
+                
+                <form method="POST" action="{{ url_for('delete_image', image_id=user_image.id) }}" 
+                      onsubmit="return confirm('本当に削除しますか？この操作は取り消せません。');">
+                    <button type="submit" class="btn btn-danger w-100">
+                        🗑️ 削除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 戻るボタン -->
+<div class="mt-4">
+    <a href="{{ url_for('gallery') }}" class="btn btn-secondary">← ギャラリーに戻る</a>
+</div>
+{% endblock %}

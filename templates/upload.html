@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}画像アップロード{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <h2 class="card-title mb-4">🖼️ 画像をアップロード</h2>
+                
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-4">
+                        <div class="upload-area border-3 border-dashed rounded p-5 text-center" id="uploadArea">
+                            <p class="text-muted mb-2">
+                                <strong>クリックまたはドラッグ&ドロップで画像を選択</strong>
+                            </p>
+                            <p class="text-muted small">対応形式: JPG, PNG, GIF (最大16MB)</p>
+                            {{ form.image(class="d-none", id="fileInput") }}
+                        </div>
+                        
+                        {% if form.image.errors %}
+                            <div class="invalid-feedback d-block mt-2">
+                                {% for error in form.image.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div id="previewArea" class="mt-4 d-none">
+                            <img id="preview" src="" alt="プレビュー" class="img-fluid rounded" style="max-height: 400px;">
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-secondary btn-sm" id="clearBtn">別の画像を選択</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                <p class="text-center">
+                    <a href="{{ url_for('gallery') }}" class="btn btn-secondary">ギャラリーに戻る</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.upload-area {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff !important;
+}
+
+.upload-area.drag-over {
+    background-color: #e7f3ff;
+    border-color: #007bff !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const previewArea = document.getElementById('previewArea');
+    const preview = document.getElementById('preview');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    // クリックでファイル選択
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    // ドラッグ&ドロップ
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            showPreview();
+        }
+    });
+    
+    // ファイル選択時
+    fileInput.addEventListener('change', showPreview);
+    
+    // クリアボタン
+    clearBtn.addEventListener('click', () => {
+        fileInput.value = '';
+        previewArea.classList.add('d-none');
+    });
+    
+    // プレビュー表示
+    function showPreview() {
+        const file = fileInput.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                previewArea.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+});
+</script>
+{% endblock %}

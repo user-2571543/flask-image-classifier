@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}ギャラリー{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>📸 分類結果ギャラリー</h2>
+        <p class="text-muted">アップロードした画像と分類結果を確認できます</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+            <strong>+</strong> 新しい画像をアップロード
+        </a>
+    </div>
+</div>
+
+{% if user_images.items %}
+    <div class="row g-4">
+        {% for user_image in user_images.items %}
+            {% set prediction = user_image.predictions.first() %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm hover-card">
+                    <!-- 画像プレビュー -->
+                    <div class="card-img-top bg-light position-relative" style="height: 250px; overflow: hidden;">
+                        <img src="{{ url_for('static', filename=user_image.upload_path) }}" 
+                             alt="{{ user_image.filename }}"
+                             class="w-100 h-100"
+                             style="object-fit: cover;">
+                    </div>
+                    
+                    <!-- カード本体 -->
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate">{{ user_image.filename }}</h5>
+                        
+                        {% if prediction %}
+                            <div class="mb-3">
+                                <!-- ラベル表示 -->
+                                {% if prediction.label == 'dog' %}
+                                    <span class="badge bg-success fs-6">🐕 犬</span>
+                                {% elif prediction.label == 'cat' %}
+                                    <span class="badge bg-info fs-6">🐈 猫</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fs-6">❓ その他</span>
+                                {% endif %}
+                                
+                                <!-- 信頼度 -->
+                                <div class="mt-2">
+                                    <small class="text-muted">信頼度</small>
+                                    <div class="progress mt-1" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: {{ prediction.confidence * 100 }}%"
+                                             aria-valuenow="{{ prediction.confidence * 100 }}" 
+                                             aria-valuemin="0" aria-valuemax="100">
+                                            {{ "%.1f" | format(prediction.confidence * 100) }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- アップロード日時 -->
+                        <small class="text-muted">
+                            📅 {{ user_image.uploaded_at.strftime('%Y年%m月%d日 %H:%M') }}
+                        </small>
+                    </div>
+                    
+                    <!-- フッター -->
+                    <div class="card-footer bg-transparent">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('detail', image_id=user_image.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                詳細を見る
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- ページネーション -->
+    {% if user_images.pages > 1 %}
+        <nav class="mt-5" aria-label="ページネーション">
+            <ul class="pagination justify-content-center">
+                {% if user_images.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('gallery', page=user_images.prev_num) }}">前へ</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">前へ</span>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in user_images.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num == user_images.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('gallery', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if user_images.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('gallery', page=user_images.next_num) }}">次へ</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">次へ</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
+{% else %}
+    <div class="alert alert-info" role="alert">
+        <h5 class="alert-heading">画像がまだアップロードされていません</h5>
+        <p>まずは画像をアップロードして分類を試してみてください！</p>
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">画像をアップロード</a>
+    </div>
+{% endif %}
+
+<style>
+.hover-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+{% endblock %}
