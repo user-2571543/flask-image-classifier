@@ -6,7 +6,7 @@ import os
 
 
 class ImageClassifier:
-    """ResNet18を使用した画像分類モデル"""
+    """犬猫分類専用モデル（ResNet50 + 改善版）"""
     
     def __init__(self, device='cpu'):
         """
@@ -15,50 +15,38 @@ class ImageClassifier:
         """
         self.device = device
         
-        # ResNet18の読み込み（ImageNet学習済みモデル）
-        self.model = models.resnet18(pretrained=True)
+        # ResNet50の読み込み（ImageNet学習済みモデル）
+        # より深いモデルで精度向上
+        self.model = models.resnet50(pretrained=True)
         self.model.to(device)
         self.model.eval()
         
-        # 入力変換パイプライン
+        # 入力変換パイプライン（標準化を改善）
         self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((256, 256)),
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                std=[0.229, 0.224, 0.225])
         ])
         
-        # ImageNet クラスのサブセット（dog, cat, otherに分類）
-        self.imagenet_classes = self._load_imagenet_classes()
+        # ImageNet クラスのマッピング
         self.class_mapping = self._create_class_mapping()
-    
-    def _load_imagenet_classes(self):
-        """ImageNet クラス名の読み込み"""
-        # 簡略化: よく使われるクラスを定義
-        dog_classes = {
-            151: 'Chihuahua', 152: 'Maltese_dog', 153: 'Poodle',
-            154: 'Afghan_hound', 155: 'Basset_hound', 156: 'Beagle',
-            157: 'Bloodhound', 158: 'Bluetick_coonhound', 159: 'Black_and_tan_coonhound',
-            160: 'Treeing_Tennessee_Brindle', 161: 'Redbone', 162: 'Fawn-colored_Weimaraner',
-            163: 'Dhole', 164: 'Dingo', 165: 'African_hunting_dog', 166: 'Hyena',
-            167: 'Red_wolf', 168: 'Jackal', 169: 'Timber_wolf'
-        }
-        
-        cat_classes = {
-            281: 'Tabby', 282: 'Tiger_cat', 283: 'Persian_cat', 284: 'Siamese_cat',
-            285: 'Egyptian_cat', 286: 'Cougar', 287: 'Lynx', 288: 'Leopard',
-            289: 'Snow_leopard', 290: 'Jaguar', 291: 'Lion', 292: 'Tiger',
-            293: 'Cheetah', 294: 'Brown_bear', 295: 'American_black_bear'
-        }
-        
-        return {'dog': dog_classes, 'cat': cat_classes}
     
     def _create_class_mapping(self):
         """ImageNetクラスIDを dog/cat/other に変換するマッピング"""
+        # ImageNetの犬クラス: 151-268
+        dog_classes = set(range(151, 269))  # Chihuahua から Corgi まで
+        
+        # ImageNetの猫クラス: 281-285
+        cat_classes = {281, 282, 283, 284, 285}  # Tabby, Tiger cat, Persian, Siamese, Egyptian cat
+        
         mapping = {}
-        for label, classes in self.imagenet_classes.items():
-            for class_id in classes.keys():
-                mapping[class_id] = label
+        for class_id in dog_classes:
+            mapping[class_id] = 'dog'
+        for class_id in cat_classes:
+            mapping[class_id] = 'cat'
+        
         return mapping
     
     def predict(self, image_path):
@@ -93,7 +81,41 @@ class ImageClassifier:
         # ImageNetクラスをdog/cat/otherに変換
         label = self.class_mapping.get(class_id, 'other')
         
+        # 信頼度が低い場合は 'other' に変更
+        if confidence < 0.3:
+            label = 'other'
+        
         return label, confidence
+    
+    def predict_with_top_k(self, image_path, k=3):
+        """
+        Top-K予測結果を返す（デバッグ用）
+        
+        Args:
+            image_path (str): 画像ファイルパス
+            k (int): 上位K件を返す
+            
+        Returns:
+            list: [(label, confidence), ...] のリスト
+        """
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image not found: {image_path}")
+        
+        image = Image.open(image_path).convert('RGB')
+        input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+        
+        with torch.no_grad():
+            output = self.model(input_tensor)
+            probabilities = torch.softmax(output, dim=1)
+            top_probs, top_indices = torch.topk(probabilities, k, dim=1)
+        
+        results = []
+        for prob, idx in zip(top_probs[0], top_indices[0]):
+            class_id = idx.item()
+            label = self.class_mapping.get(class_id, 'other')
+            results.append((label, prob.item()))
+        
+        return results
 
 
 # グローバルインスタンス
